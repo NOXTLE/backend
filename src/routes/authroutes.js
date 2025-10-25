@@ -12,11 +12,13 @@ router
     console.log(password);
     try {
       const data = await new User(req.body).save();
+      const token = jwt.sign({ userId: data._id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
+      res.cookie("token", token, { httpOnly: true });
       res.status(201).json({
         success: true,
-        token: jwt.sign({ userId: data._id }, process.env.JWT_SECRET, {
-          expiresIn: "7d",
-        }),
+        token: token,
         user: {
           id: data._id,
           name: data.name,
@@ -40,6 +42,7 @@ router
           const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
             expiresIn: "7d",
           });
+          res.cookie("token", token, { httpOnly: true });
           return res.status(200).json({
             success: true,
             token: token,
@@ -57,7 +60,15 @@ router
     }
   })
   .post("/auth/logout", authMiddleware, (req, res) => {
-    res.send("logout route");
+    try {
+      res.clearCookie("token");
+      res.status(200).json({
+        success: true,
+        message: "Logged out successfully",
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
   })
   .get("/auth/verify", (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
